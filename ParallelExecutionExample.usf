@@ -1,0 +1,24 @@
+// ParallelExecutionExample.usf
+// ProcessedPositions[i] = StreamPositions[i] * Scale
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> StreamPositions;
+RWStructuredBuffer<float3> ProcessedPositions;
+
+uint NumElements;
+float Scale; // default 1.1f
+
+[numthreads(256, 1, 1)]
+void ExecuteStream(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 p = StreamPositions[index] * Scale;
+    ProcessedPositions[index] = p;
+}
+

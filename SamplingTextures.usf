@@ -1,0 +1,32 @@
+// SamplingTextures.usf
+// For each chunk index i, samples a slice from a Texture2DArray using TextureIndices[i]
+// and writes the color to OutputTexture at (i, 0).
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<int> TextureIndices;
+Texture2DArray<float4> TextureArray;
+SamplerState LayerSampler;
+RWTexture2D<float4> OutputTexture;
+
+int NumChunks;
+
+[numthreads(8, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const int chunkIndex = DispatchThreadId.x;
+    if (chunkIndex >= NumChunks)
+    {
+        return;
+    }
+
+    const int textureIndex = TextureIndices[chunkIndex];
+
+    // UV mapping: simple 1D ramp based on chunk index (mirrors provided Unity logic)
+    float t = (NumChunks > 0) ? (chunkIndex / (float)NumChunks) : 0.0;
+    float2 uv = float2(t, t);
+
+    float4 color = TextureArray.SampleLevel(LayerSampler, float3(uv, textureIndex), 0);
+    OutputTexture[int2(chunkIndex, 0)] = color;
+}
+

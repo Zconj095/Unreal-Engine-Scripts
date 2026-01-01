@@ -1,0 +1,23 @@
+// DrivenUpdates.usf
+// NewValues[i] = OldValues[i] + float3(1,1,1)
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> OldValues;
+RWStructuredBuffer<float3> NewValues;
+
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void GPUUpdate(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 v = OldValues[index] + float3(1.0, 1.0, 1.0);
+    NewValues[index] = v;
+}
+

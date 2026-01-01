@@ -1,0 +1,28 @@
+// GeometrySimplification.usf
+// ReducedVertices[i] = OriginalVertices[i] * 0.9 (placeholder simplification)
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> OriginalVertices;
+RWStructuredBuffer<float3> ReducedVertices;
+
+uint NumElements;
+float WeightNormals;
+float WeightVolume;
+
+[numthreads(256, 1, 1)]
+void SimplifyGeometry(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 v = OriginalVertices[index];
+    // Placeholder: scale down. Weights are available for future logic.
+    float scale = 0.9;
+    float3 reduced = v * scale;
+    ReducedVertices[index] = reduced;
+}
+

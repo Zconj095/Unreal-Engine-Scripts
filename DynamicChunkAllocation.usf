@@ -1,0 +1,22 @@
+// DynamicChunkAllocation.usf
+// ChunkAllocation[i] = (VisibilityFlags[i] == 1) ? 1 : 0
+
+#include "/Engine/Private/Common.ush"
+
+RWStructuredBuffer<int> ChunkAllocation;
+StructuredBuffer<int> VisibilityFlags;
+int ChunkCount;
+
+[numthreads(256, 1, 1)]
+void AllocateChunks(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= (uint)ChunkCount)
+    {
+        return;
+    }
+
+    const int visible = VisibilityFlags[index];
+    ChunkAllocation[index] = (visible == 1) ? 1 : 0;
+}
+

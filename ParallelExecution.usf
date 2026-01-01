@@ -1,0 +1,27 @@
+// ParallelExecution.usf
+// UpdatedPositions[i] = Positions[i] + Velocities[i] * DeltaTime
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> Positions;
+StructuredBuffer<float3> Velocities;
+RWStructuredBuffer<float3> UpdatedPositions;
+
+uint NumElements;
+float DeltaTime; // e.g., 0.016f
+
+[numthreads(256, 1, 1)]
+void UpdateStreams(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 p = Positions[index];
+    float3 v = Velocities[index];
+    p += v * DeltaTime;
+    UpdatedPositions[index] = p;
+}
+

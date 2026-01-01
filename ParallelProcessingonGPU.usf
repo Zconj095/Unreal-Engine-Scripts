@@ -1,0 +1,30 @@
+// ParallelProcessingonGPU.usf
+// ProcessedPosition[i] = AlignedStreamPosition[i] + AlignedStreamNormal[i] * AlignedStreamLOD[i] * LodScale
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> AlignedStreamPosition;
+StructuredBuffer<float3> AlignedStreamNormal;
+StructuredBuffer<int>    AlignedStreamLOD;
+RWStructuredBuffer<float3> ProcessedPosition;
+
+uint NumElements;
+float LodScale; // e.g., 0.1f
+
+[numthreads(256, 1, 1)]
+void ProcessAlignedStream(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 position = AlignedStreamPosition[index];
+    float3 normal   = AlignedStreamNormal[index];
+    int lod         = AlignedStreamLOD[index];
+
+    float3 adjusted = position + normal * (float)lod * LodScale;
+    ProcessedPosition[index] = adjusted;
+}
+

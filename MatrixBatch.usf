@@ -1,0 +1,24 @@
+// MatrixBatch.usf
+// TransformedVertices[i] = mul(TransformationMatrix, RawVertices[i])
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float4> RawVertices;
+RWStructuredBuffer<float4> TransformedVertices;
+float4x4 TransformationMatrix;
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float4 v = RawVertices[index];
+    float4 tv = mul(TransformationMatrix, v);
+    TransformedVertices[index] = tv;
+}
+

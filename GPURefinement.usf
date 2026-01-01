@@ -1,0 +1,51 @@
+// GPURefinement.usf
+// Refines a coarse single-channel texture by adding procedural 2D noise.
+
+#include "/Engine/Private/Common.ush"
+
+Texture2D<float> CoarseTexture;
+RWTexture2D<float> RefinedTexture;
+
+int Resolution;
+float Frequency; // e.g., 20.0
+
+// Minimal value noise helpers (same style as GPUExecution)
+float hash12(float2 p)
+{
+    const float h = sin(dot(p, float2(127.1, 311.7))) * 43758.5453123;
+    return frac(h);
+}
+
+float valueNoise2D(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    float2 u = f * f * (3.0 - 2.0 * f);
+
+    float n00 = hash12(i + float2(0, 0));
+    float n10 = hash12(i + float2(1, 0));
+    float n01 = hash12(i + float2(0, 1));
+    float n11 = hash12(i + float2(1, 1));
+
+    float nx0 = lerp(n00, n10, u.x);
+    float nx1 = lerp(n01, n11, u.x);
+    float n = lerp(nx0, nx1, u.y);
+    return n * 2.0 - 1.0;
+}
+
+[numthreads(8, 8, 1)]
+void RefineData(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint x = DispatchThreadId.x;
+    const uint z = DispatchThreadId.y;
+    if (x >= (uint)Resolution || z >= (uint)Resolution)
+    {
+        return;
+    }
+
+    float coarseValue = CoarseTexture.Load(int3(x, z, 0)).r;
+    float2 uv = (float2(x, z) + 0.5) / Resolution;
+    float refinedValue = coarseValue + valueNoise2D(uv * Frequency);
+    RefinedTexture[int2(x, z)] = refinedValue;
+}
+

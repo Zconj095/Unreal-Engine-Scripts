@@ -1,0 +1,26 @@
+// TransformChunks.usf
+// Converts: TransformedChunks[i] = mul(TransformationMatrix, float4(AlignedChunks[i],1)).xyz
+
+#include "/Engine/Private/Common.ush"
+
+// Match C++ parameter struct names and types
+StructuredBuffer<float3> AlignedChunks;
+RWStructuredBuffer<float3> TransformedChunks;
+float4x4 TransformationMatrix;
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 vertex = AlignedChunks[index];
+    float4 h = float4(vertex, 1.0);
+    float3 result = mul(TransformationMatrix, h).xyz;
+    TransformedChunks[index] = result;
+}
+

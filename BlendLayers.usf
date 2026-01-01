@@ -1,0 +1,44 @@
+// BlendLayers.usf
+// Blends a Texture2DArray by per-pixel weight vector (float4), up to 4 layers.
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float4> TextureWeights; // [Resolution*Resolution] elements
+Texture2DArray<float4> LayerTextures;
+RWTexture2D<float4> BlendedTexture;
+SamplerState LayerSampler;
+
+int Resolution;
+int NumLayers; // 1..4 expected
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const int x = DispatchThreadId.x;
+    const int z = DispatchThreadId.y;
+
+    if (x >= Resolution || z >= Resolution)
+    {
+        return;
+    }
+
+    const int idx = z * Resolution + x;
+    float4 w = TextureWeights[idx];
+
+    float2 uv = (float2(x, z) + 0.5) / Resolution;
+    float4 finalColor = float4(0, 0, 0, 1);
+
+    // Accumulate up to NumLayers (clamped to 4) using array slice as layer
+    const int L = clamp(NumLayers, 0, 4);
+    [unroll]
+    for (int k = 0; k < L; ++k)
+    {
+        float weight = w[k];
+        // Sample the k-th slice at LOD 0
+        float4 layerColor = LayerTextures.SampleLevel(LayerSampler, float3(uv, k), 0);
+        finalColor += weight * layerColor;
+    }
+
+    BlendedTexture[uint2(x, z)] = finalColor;
+}
+

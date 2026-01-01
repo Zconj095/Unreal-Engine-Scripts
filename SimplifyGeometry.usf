@@ -1,0 +1,25 @@
+// SimplifyGeometry.usf
+// Scales each vertex by a factor (default 0.9) to reduce complexity.
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> OriginalVertices;
+RWStructuredBuffer<float3> SimplifiedVertices;
+
+uint NumElements;
+float ScaleFactor; // e.g., 0.9
+
+[numthreads(256, 1, 1)]
+void SimplifyGeometry(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float3 v = OriginalVertices[index];
+    float3 simplified = v * ScaleFactor;
+    SimplifiedVertices[index] = simplified;
+}
+

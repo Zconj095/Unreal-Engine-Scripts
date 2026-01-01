@@ -1,0 +1,76 @@
+// VectorizedNoise.usf
+// For each input position, writes FBM value-noise height to a pixel in Result.
+
+#include "/Engine/Private/Common.ush"
+
+RWTexture2D<float> Result;
+StructuredBuffer<float2> Positions; // pixel-space positions
+
+int NumPositions;
+int Width;
+int Height;
+
+float BaseFrequency;
+float Amplitude;
+int   Octaves;
+float Lacunarity;
+float Persistence;
+
+// Value-noise helpers (consistent with other shaders)
+float hash12(float2 p)
+{
+    const float h = sin(dot(p, float2(127.1, 311.7))) * 43758.5453123;
+    return frac(h);
+}
+
+float valueNoise2D(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    float2 u = f * f * (3.0 - 2.0 * f);
+
+    float n00 = hash12(i + float2(0, 0));
+    float n10 = hash12(i + float2(1, 0));
+    float n01 = hash12(i + float2(0, 1));
+    float n11 = hash12(i + float2(1, 1));
+
+    float nx0 = lerp(n00, n10, u.x);
+    float nx1 = lerp(n01, n11, u.x);
+    float n = lerp(nx0, nx1, u.y);
+    return n * 2.0 - 1.0; // [-1,1]
+}
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= (uint)NumPositions)
+    {
+        return;
+    }
+
+    float2 position = Positions[index]; // expected pixel coords (x,y)
+    int2 ip = (int2)round(position);
+    if (ip.x < 0 || ip.y < 0 || ip.x >= Width || ip.y >= Height)
+    {
+        return;
+    }
+
+    float height = 0.0;
+    float freq = 1.0;
+    float amp = Amplitude;
+
+    // Use BaseFrequency in continuous space; scale by freq per octave
+    float2 base = position * BaseFrequency;
+    [loop]
+    for (int i = 0; i < 32; ++i) // cap to avoid unroll explosion
+    {
+        if (i >= Octaves) break;
+        height += amp * valueNoise2D(base * freq);
+        freq *= Lacunarity;
+        amp *= Persistence;
+    }
+
+    Result[ip] = height;
+}
+

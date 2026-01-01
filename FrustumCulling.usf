@@ -1,0 +1,39 @@
+// FrustumCulling.usf
+// VisibilityFlags[i] = inside(ChunkBounds[i], FrustumPlanes) ? 1 : 0
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float4> ChunkBounds; // xyz=center, w=size (radius)
+RWStructuredBuffer<int> VisibilityFlags;
+
+float4 FrustumPlanes[6]; // xyz = normal, w = d
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float4 bounds = ChunkBounds[index];
+    float3 center = bounds.xyz;
+    float size = bounds.w;
+
+    bool isVisible = true;
+    [unroll]
+    for (int i = 0; i < 6; ++i)
+    {
+        float dist = dot(FrustumPlanes[i].xyz, center) + FrustumPlanes[i].w;
+        if (dist < -size)
+        {
+            isVisible = false;
+            break;
+        }
+    }
+
+    VisibilityFlags[index] = isVisible ? 1 : 0;
+}
+

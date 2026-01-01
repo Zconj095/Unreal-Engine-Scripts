@@ -1,0 +1,80 @@
+// GPUExecution.usf
+// Writes a procedural height map using simple 2D value noise (optionally FBM).
+
+#include "/Engine/Private/Common.ush"
+
+RWTexture2D<float> HeightMap;
+
+int Resolution;
+float Frequency;   // base frequency (e.g. 10.0)
+int Octaves;       // number of FBM octaves (>=1)
+float Lacunarity;  // frequency multiplier per octave (e.g., 2.0)
+float Gain;        // amplitude multiplier per octave (e.g., 0.5)
+
+// Hash and value noise helpers
+float hash12(float2 p)
+{
+    // Cheap 2D hash to [0,1]
+    const float h = sin(dot(p, float2(127.1, 311.7))) * 43758.5453123;
+    return frac(h);
+}
+
+float valueNoise2D(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    float2 u = f * f * (3.0 - 2.0 * f); // smoothstep
+
+    float n00 = hash12(i + float2(0, 0));
+    float n10 = hash12(i + float2(1, 0));
+    float n01 = hash12(i + float2(0, 1));
+    float n11 = hash12(i + float2(1, 1));
+
+    float nx0 = lerp(n00, n10, u.x);
+    float nx1 = lerp(n01, n11, u.x);
+    float n = lerp(nx0, nx1, u.y);
+
+    return n * 2.0 - 1.0; // map to [-1,1]
+}
+
+float fbm2D(float2 p, int octaves, float lacunarity, float gain)
+{
+    float sum = 0.0;
+    float amp = 1.0;
+    float freq = 1.0;
+    [loop]
+    for (int i = 0; i < 16; ++i) // hard cap
+    {
+        if (i >= octaves) break;
+        sum += amp * valueNoise2D(p * freq);
+        freq *= lacunarity;
+        amp *= gain;
+    }
+    return sum; // not normalized; can exceed [-1,1] for octaves>1
+}
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const int x = DispatchThreadId.x;
+    const int y = DispatchThreadId.y;
+    if (x >= Resolution || y >= Resolution)
+    {
+        return;
+    }
+
+    float2 uv = (float2(x, y) + 0.5) / Resolution;
+
+    float h;
+    if (Octaves <= 1)
+    {
+        h = valueNoise2D(uv * Frequency);
+    }
+    else
+    {
+        h = fbm2D(uv * Frequency, Octaves, Lacunarity, Gain);
+    }
+
+    HeightMap[int2(x, y)] = h;
+}
+

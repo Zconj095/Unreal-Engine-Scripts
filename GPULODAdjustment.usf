@@ -1,0 +1,37 @@
+// GPULODAdjustment.usf
+// Adjusts vertices based on per-chunk LOD level.
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float3> RawVertices;
+StructuredBuffer<int> LODLevels; // one entry per chunk
+RWStructuredBuffer<float3> AdjustedVertices;
+
+uint NumElements; // number of vertices
+uint ChunkSize;   // number of vertices per chunk
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    uint chunkIndex = (ChunkSize > 0) ? (index / ChunkSize) : 0;
+    int lodLevel = LODLevels[chunkIndex];
+
+    float3 v = RawVertices[index];
+    if (lodLevel == 1)
+    {
+        v *= 0.5f;  // medium detail
+    }
+    else if (lodLevel == 2)
+    {
+        v *= 0.25f; // low detail
+    }
+
+    AdjustedVertices[index] = v;
+}
+

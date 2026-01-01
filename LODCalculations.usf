@@ -1,0 +1,27 @@
+// LODCalculations.usf
+// ProcessedVertexBuffer[i] = float4(Vertex.xyz * (1 + LOD*0.1), LOD)
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float4> VertexLODBuffer; // xyz=position, w=lod
+RWStructuredBuffer<float4> ProcessedVertexBuffer;
+
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void ComputeLOD(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float4 vertexLOD = VertexLODBuffer[index];
+    float3 position = vertexLOD.xyz;
+    float lod = vertexLOD.w;
+
+    position *= (1.0 + lod * 0.1);
+    ProcessedVertexBuffer[index] = float4(position, lod);
+}
+

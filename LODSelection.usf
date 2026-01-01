@@ -1,0 +1,35 @@
+// LODSelection.usf
+// Writes LOD index based on distance thresholds.
+
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float> Distances;
+RWStructuredBuffer<int> LODs;
+
+float HighThreshold;
+float MediumThreshold;
+uint NumElements;
+
+[numthreads(256, 1, 1)]
+void LODSelection(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    const uint index = DispatchThreadId.x;
+    if (index >= NumElements)
+    {
+        return;
+    }
+
+    float distance = Distances[index];
+    int lod = 2; // LOD_low default
+    if (distance < HighThreshold)
+    {
+        lod = 0; // high
+    }
+    else if (distance < MediumThreshold)
+    {
+        lod = 1; // medium
+    }
+
+    LODs[index] = lod;
+}
+
